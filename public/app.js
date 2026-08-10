@@ -305,6 +305,7 @@ async function renderPredicciones() {
 
   const list = view.querySelector('#matchesList');
   data.matches.forEach(m => {
+    const wrap = document.createElement('div');
     const row = document.createElement('div');
     row.className = 'match-row';
     const locked = !!m.my_prediction;
@@ -328,7 +329,9 @@ async function renderPredicciones() {
         <div><div>${escapeHtml(m.away_team.name)}</div><div class="pos">${m.away_team.liga_position ? '#' + m.away_team.liga_position : ''}</div></div>
       </div>
     `;
-    list.appendChild(row);
+    wrap.innerHTML = `<div class="match-kickoff">${formatMatchKickoff(m.kickoff_at)}</div>`;
+    wrap.appendChild(row);
+    list.appendChild(wrap);
   });
 
   const allLocked = data.matches.every(m => m.my_prediction);
@@ -388,6 +391,15 @@ function startCountdown(deadlineIso, el) {
 }
 
 function pad(n) { return String(n).padStart(2, '0'); }
+
+function formatMatchKickoff(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('es-ES', {
+    weekday: 'short', day: 'numeric', month: 'short',
+    hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid'
+  });
+}
 
 function formatDateEs(iso) {
   const d = new Date(iso);
