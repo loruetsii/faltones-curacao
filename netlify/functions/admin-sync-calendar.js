@@ -35,34 +35,38 @@ exports.handler = async (event) => {
     byMatchday[n].push(m);
   });
 
-  let matchdaysCreated = 0;
-  let matchesCreated = 0;
-
-  for (const numberStr of Object.keys(byMatchday)) {
+  // 1) Construimos TODAS las jornadas de golpe y las guardamos en una sola llamada
+  const matchdayRows = Object.keys(byMatchday).map(numberStr => {
     const number = parseInt(numberStr, 10);
     const matchesOfDay = byMatchday[number];
     const isMidweek = MIDWEEK_MATCHDAYS.includes(number);
-
     const firstKickoff = matchesOfDay
       .map(m => new Date(m.utcDate).getTime())
       .sort((a, b) => a - b)[0];
-
     const deadline = calcDeadline(new Date(firstKickoff), isMidweek);
+    return { number, deadline_at: deadline.toISOString(), is_midweek: isMidweek };
+  });
 
-    const { data: mdRow, error: mdError } = await db
-      .from('matchdays')
-      .upsert({
-        number,
-        deadline_at: deadline.toISOString(),
-        is_midweek: isMidweek
-      }, { onConflict: 'number' })
-      .select()
-      .single();
+  const { data: savedMatchdays, error: mdError } = await db
+    .from('matchdays')
+    .upsert(matchdayRows, { onConflict: 'number' })
+    .select();
 
-    if (mdError || !mdRow) continue;
-    matchdaysCreated++;
+  if (mdError) {
+    return jsonResponse(500, { error: 'Error guardando jornadas: ' + mdError.message });
+  }
 
-    for (const m of matchesOfDay) {
+  const matchdayIdByNumber = {};
+  savedMatchdays.forEach(md => { matchdayIdByNumber[md.number] = md.id; });
+
+  // 2) Construimos TODOS los partidos de golpe y los guardamos en una sola llamada
+  const matchRows = [];
+  for (const numberStr of Object.keys(byMatchday)) {
+    const number = parseInt(numberStr, 10);
+    const matchdayId = matchdayIdByNumber[number];
+    if (!matchdayId) continue;
+
+    for (const m of byMatchday[number]) {
       const homeId = teamByApiId[m.homeTeam.id];
       const awayId = teamByApiId[m.awayTeam.id];
       if (!homeId || !awayId) continue;
@@ -71,22 +75,32 @@ exports.handler = async (event) => {
         : m.status === 'POSTPONED' ? 'postponed'
         : 'scheduled';
 
-      const { error: matchError } = await db.from('matches').upsert({
+      matchRows.push({
         api_match_id: m.id,
-        matchday_id: mdRow.id,
+        matchday_id: matchdayId,
         home_team_id: homeId,
         away_team_id: awayId,
         kickoff_at: m.utcDate,
         status,
         home_score: m.score?.fullTime?.home ?? null,
         away_score: m.score?.fullTime?.away ?? null
-      }, { onConflict: 'api_match_id' });
-
-      if (!matchError) matchesCreated++;
+      });
     }
   }
 
+  // Supabase permite mandar hasta varios cientos de filas en una sola llamada sin problema,
+  // pero lo troceamos en bloques de 100 por seguridad.
+  let matchesCreated = 0;
+  const chunkSize = 100;
+  for (let i = 0; i < matchRows.length; i += chunkSize) {
+    const chunk = matchRows.slice(i, i + chunkSize);
+    const { error: matchError } = await db
+      .from('matches')
+      .upsert(chunk, { onConflict: 'api_match_id' });
+    if (!matchError) matchesCreated += chunk.length;
+  }
+
   return jsonResponse(200, {
-    message: `${matchdaysCreated} jornadas y ${matchesCreated} partidos sincronizados`
+    message: `${savedMatchdays.length} jornadas y ${matchesCreated} partidos sincronizados`
   });
 };
