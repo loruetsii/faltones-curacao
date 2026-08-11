@@ -25,8 +25,13 @@ exports.handler = async (event) => {
       display_name: u.display_name || u.username,
       avatar_url: u.avatar_url,
       total_points: 0,
+      exact_points: 0,
+      diff_points: 0,
+      winner_points: 0,
       exact_results: 0,
-      winners_correct: 0,
+      diff_results: 0,
+      winner_only_results: 0,
+      winner_accuracy_total: 0, // usado solo para el desempate: incluye exactos y diferencia también
       played: 0
     };
   });
@@ -36,14 +41,16 @@ exports.handler = async (event) => {
     if (!s) return;
     s.total_points += p.points;
     s.played += 1;
-    if (p.points === 6) s.exact_results += 1;
-    if (p.points >= 1) s.winners_correct += 1;
+    if (p.points >= 1) s.winner_accuracy_total += 1;
+    if (p.points === 6) { s.exact_points += 6; s.exact_results += 1; }
+    else if (p.points === 2) { s.diff_points += 2; s.diff_results += 1; }
+    else if (p.points === 1) { s.winner_points += 1; s.winner_only_results += 1; }
   });
 
   const ranking = Object.values(stats).sort((a, b) => {
     if (b.total_points !== a.total_points) return b.total_points - a.total_points;
     if (b.exact_results !== a.exact_results) return b.exact_results - a.exact_results;
-    return b.winners_correct - a.winners_correct;
+    return b.winner_accuracy_total - a.winner_accuracy_total;
   });
 
   ranking.forEach((r, i) => { r.position = i + 1; });

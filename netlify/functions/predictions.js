@@ -78,20 +78,10 @@ exports.handler = async (event) => {
       .eq('matchday_id', matchday.id);
     const validIds = new Set((matches || []).map(m => m.id));
 
-    const { data: already } = await db
-      .from('predictions')
-      .select('match_id')
-      .eq('user_id', user.sub)
-      .in('match_id', Array.from(validIds));
-    const alreadySet = new Set((already || []).map(p => p.match_id));
-
     const rows = [];
     for (const p of predictions) {
       if (!validIds.has(p.matchId)) {
         return jsonResponse(400, { error: 'Partido no válido para esta jornada' });
-      }
-      if (alreadySet.has(p.matchId)) {
-        return jsonResponse(400, { error: 'Ya enviaste un pronóstico para uno de estos partidos; no se puede modificar' });
       }
       const home = parseInt(p.home, 10);
       const away = parseInt(p.away, 10);
@@ -102,12 +92,15 @@ exports.handler = async (event) => {
         user_id: user.sub,
         match_id: p.matchId,
         home_score_pred: home,
-        away_score_pred: away
+        away_score_pred: away,
+        submitted_at: new Date().toISOString()
       });
     }
 
-    const { error: insertError } = await db.from('predictions').insert(rows);
-    if (insertError) {
+    const { error: upsertError } = await db
+      .from('predictions')
+      .upsert(rows, { onConflict: 'user_id,match_id' });
+    if (upsertError) {
       return jsonResponse(500, { error: 'No se pudieron guardar los pronósticos' });
     }
 
