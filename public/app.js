@@ -461,8 +461,9 @@ function paintPorraModeRow(view) {
 }
 
 function breakdownTable(ranking, myUsername) {
+  const medals = ['🥇', '🥈', '🥉'];
   return `
-    <table class="standings-table">
+    <table class="standings-table standings-table-hi">
       <thead><tr>
         <th>#</th><th>Jugador</th><th>Pts</th>
         <th title="Puntos por resultado exacto">Exacto</th>
@@ -471,8 +472,8 @@ function breakdownTable(ranking, myUsername) {
       </tr></thead>
       <tbody>
         ${ranking.map((r, i) => `
-          <tr class="${r.username === myUsername ? 'row-me' : ''}">
-            <td class="pos-col">${r.position ?? i + 1}</td>
+          <tr class="${r.username === myUsername ? 'row-me' : ''} ${i < 3 ? 'row-rank-' + (i + 1) : ''}">
+            <td class="pos-col">${i < 3 ? `<span class="medal">${medals[i]}</span>` : (r.position ?? i + 1)}</td>
             <td class="name-cell">
               ${r.avatar_url ? `<img src="${r.avatar_url}">` : ''}
               ${escapeHtml(r.display_name)}
@@ -533,7 +534,7 @@ async function fillClasifContent(container) {
       const md = matchdays.find(m => m.number === selectedJornadaNumber);
       const ranking = computeJornadaRanking(md);
       container.querySelector('#jornadaTable').innerHTML = ranking.length
-        ? breakdownTable(ranking, state.user.username)
+        ? breakdownTable(ranking, state.user.display_name || state.user.username)
         : '<div class="empty-state">Sin pronósticos puntuados en esta jornada</div>';
     };
     container.querySelector('#jornadaSelect').addEventListener('change', (e) => {
@@ -580,7 +581,7 @@ function computeJornadaRanking(matchday) {
       const s = stats[p.username];
       s.total_points += p.points;
       if (p.points === 6) { s.exact_points += 6; s.exact_results += 1; }
-      else if (p.points === 2) { s.diff_points += 2; }
+      else if (p.points === 3) { s.diff_points += 2; s.winner_points += 1; }
       else if (p.points === 1) { s.winner_points += 1; }
     });
   });
@@ -610,41 +611,51 @@ async function renderHistorial() {
 
   matchdays.forEach(md => {
     const section = document.createElement('div');
-    section.className = 'card';
+    section.className = 'card jornada-card';
     section.style.marginTop = '14px';
     const finished = md.matches.every(m => m.status === 'finished');
     section.innerHTML = `
-      <h3 style="font-size:15px;color:var(--lime);margin-bottom:8px;">
-        Jornada ${md.number} ${finished ? '' : '<span class="muted" style="font-size:11px;">(pendiente de resultados)</span>'}
-      </h3>
+      <div class="jornada-header">
+        <h3>Jornada ${md.number}</h3>
+        ${!finished ? '<span class="jornada-pending">Pendiente de resultados</span>' : ''}
+      </div>
       <div class="matchday-body"></div>
     `;
     const body = section.querySelector('.matchday-body');
-    md.matches.forEach(m => {
-      const row = document.createElement('div');
-      row.style.marginBottom = '10px';
-      row.innerHTML = `
-        <div class="match-row" style="border-bottom:none;padding-bottom:4px;">
-          <div class="team home">
-            ${m.home_team.crest_url ? `<img src="${m.home_team.crest_url}">` : ''}
-            <div>${escapeHtml(m.home_team.name)}</div>
+    md.matches.forEach((m, idx) => {
+      const sortedPreds = [...m.predictions].sort((a, b) => (b.points ?? -1) - (a.points ?? -1));
+      const details = document.createElement('details');
+      details.className = 'match-accordion';
+      if (idx === 0) details.open = true;
+      details.innerHTML = `
+        <summary>
+          <span class="match-kickoff" style="padding-top:0;">${formatMatchKickoff(m.kickoff_at)}</span>
+          <div class="match-row" style="border-bottom:none;padding:6px 0;">
+            <div class="team home">
+              ${m.home_team.crest_url ? `<img src="${m.home_team.crest_url}">` : ''}
+              <div>${escapeHtml(m.home_team.name)}</div>
+            </div>
+            <div class="score-locked">${m.status === 'finished' ? `${m.home_score} - ${m.away_score}` : 'vs'}</div>
+            <div class="team away">
+              ${m.away_team.crest_url ? `<img src="${m.away_team.crest_url}">` : ''}
+              <div>${escapeHtml(m.away_team.name)}</div>
+            </div>
           </div>
-          <div class="score-locked">${m.status === 'finished' ? `${m.home_score} - ${m.away_score}` : 'vs'}</div>
-          <div class="team away">
-            ${m.away_team.crest_url ? `<img src="${m.away_team.crest_url}">` : ''}
-            <div>${escapeHtml(m.away_team.name)}</div>
-          </div>
-        </div>
-        <div style="font-size:12px;color:var(--text-muted);padding-left:2px;">
-          ${m.predictions.map(p => `
-            <span style="margin-right:10px;">
-              ${escapeHtml(p.username)}: ${p.home}-${p.away}
-              ${p.points != null ? badgeFor(p.points) : ''}
-            </span>
-          `).join('')}
-        </div>
+        </summary>
+        <table class="predictions-table">
+          <thead><tr><th>Jugador</th><th>Pronóstico</th><th>Pts</th></tr></thead>
+          <tbody>
+            ${sortedPreds.map(p => `
+              <tr class="${p.username === (state.user.display_name || state.user.username) ? 'row-me' : ''}">
+                <td>${escapeHtml(p.username)}</td>
+                <td class="pred-score">${p.home}-${p.away}</td>
+                <td>${p.points != null ? `<span class="pts-pill pts-${p.points}">${p.points}</span>` : '<span class="muted">-</span>'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
       `;
-      body.appendChild(row);
+      body.appendChild(details);
     });
     view.appendChild(section);
   });
@@ -761,8 +772,8 @@ async function renderReglas() {
 
 const DEFAULT_RULES_TEXT = `Puntuación
 - Resultado exacto: 6 puntos
-- Diferencia de goles correcta (sin acertar el resultado exacto): 2 puntos
-- Solo acertar el ganador (o el empate): 1 punto
+- Diferencia de goles correcta (sin acertar el resultado exacto): 2 puntos por la diferencia + 1 punto por el ganador = 3 puntos
+- Solo acertar el ganador (o el empate), sin acertar la diferencia: 1 punto
 - Si no se acierta nada: 0 puntos
 
 Desempate en la clasificación general
@@ -773,7 +784,7 @@ Desempate en la clasificación general
 Plazos
 - Jornadas normales: viernes anterior a las 18:00 (hora peninsular)
 - Jornadas 6 y 33 (entre semana): martes anterior a las 17:00 (hora peninsular)
-- Los pronósticos, una vez enviados, no se pueden modificar
+- Puedes cambiar tu pronóstico las veces que quieras hasta que cierre el plazo
 - Si no envías tu pronóstico a tiempo, te quedas con 0 puntos esa jornada
 
 Partidos aplazados

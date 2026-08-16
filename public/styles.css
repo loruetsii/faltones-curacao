@@ -368,6 +368,89 @@ button:focus-visible {
 
 canvas#evolutionChart { width: 100%; height: 220px; }
 
+/* ---------- CLASIFICACIÓN: top 3 destacado en la propia tabla ---------- */
+.standings-table-hi td { font-size: 13.5px; }
+.standings-table-hi .medal { font-size: 18px; line-height: 1; }
+.standings-table-hi tr.row-rank-1,
+.standings-table-hi tr.row-rank-2,
+.standings-table-hi tr.row-rank-3 { position: relative; }
+.standings-table-hi tr.row-rank-1 td,
+.standings-table-hi tr.row-rank-2 td,
+.standings-table-hi tr.row-rank-3 td {
+  padding-top: 13px; padding-bottom: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.standings-table-hi tr.row-rank-1 td { background: rgba(198,255,61,0.10); border-left: 3px solid var(--lime); }
+.standings-table-hi tr.row-rank-2 td { background: rgba(143,163,154,0.10); border-left: 3px solid #C7D2CC; }
+.standings-table-hi tr.row-rank-3 td { background: rgba(255,176,32,0.08); border-left: 3px solid #CD8A4A; }
+.standings-table-hi tr.row-rank-1 td:first-child,
+.standings-table-hi tr.row-rank-2 td:first-child,
+.standings-table-hi tr.row-rank-3 td:first-child { padding-left: 9px; }
+.standings-table-hi tr.row-rank-1 .name-cell { font-weight: 700; font-size: 14.5px; }
+.standings-table-hi tr.row-rank-1 .pts { font-size: 19px; text-shadow: 0 0 16px rgba(198,255,61,0.4); }
+.standings-table-hi tr.row-rank-1.row-me td { background: rgba(198,255,61,0.16); }
+
+/* ---------- HISTORIAL: jornadas y tabla de pronósticos ---------- */
+.jornada-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+}
+.jornada-header h3 {
+  font-size: 16px; color: var(--lime); display: flex; align-items: center; gap: 8px;
+}
+.jornada-pending {
+  font-size: 10px; color: var(--amber); background: rgba(255,176,32,0.12);
+  padding: 4px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.match-accordion {
+  border-bottom: 1px solid var(--line);
+  padding: 4px 0;
+}
+.match-accordion:last-child { border-bottom: none; }
+.match-accordion summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 4px 2px;
+  border-radius: 10px;
+  transition: background 0.15s var(--ease);
+}
+.match-accordion summary::-webkit-details-marker { display: none; }
+.match-accordion summary:hover { background: rgba(255,255,255,0.02); }
+.match-accordion summary::after {
+  content: '▾'; float: right; color: var(--text-muted); font-size: 12px;
+  transform: translateY(2px);
+  transition: transform 0.2s var(--ease);
+}
+.match-accordion[open] summary::after { transform: translateY(2px) rotate(180deg); }
+
+.predictions-table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px;
+  margin: 6px 0 10px; animation: fadeInUp 0.25s var(--ease);
+}
+.predictions-table th {
+  text-align: left; color: var(--text-muted); font-weight: 600;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 6px 8px; border-bottom: 1px solid var(--line);
+}
+.predictions-table td {
+  padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.predictions-table tr:last-child td { border-bottom: none; }
+.predictions-table tr.row-me td { background: rgba(198,255,61,0.06); }
+.predictions-table .pred-score { font-family: var(--font-display); font-size: 14px; }
+
+.pts-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; padding: 3px 8px; border-radius: 20px;
+  font-family: var(--font-display); font-size: 12px; font-weight: 600;
+}
+.pts-pill.pts-6 { background: rgba(198,255,61,0.15); color: var(--lime); }
+.pts-pill.pts-3 { background: rgba(255,176,32,0.15); color: var(--amber); }
+.pts-pill.pts-1 { background: rgba(255,176,32,0.15); color: var(--amber); }
+.pts-pill.pts-0 { background: rgba(255,59,92,0.12); color: var(--coral); }
+
 /* ---------- DESKTOP ---------- */
 @media (min-width: 860px) {
   body { padding-bottom: 0; padding-left: 232px; }

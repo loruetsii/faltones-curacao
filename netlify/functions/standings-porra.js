@@ -43,7 +43,7 @@ exports.handler = async (event) => {
     s.played += 1;
     if (p.points >= 1) s.winner_accuracy_total += 1;
     if (p.points === 6) { s.exact_points += 6; s.exact_results += 1; }
-    else if (p.points === 2) { s.diff_points += 2; s.diff_results += 1; }
+    else if (p.points === 3) { s.diff_points += 2; s.winner_points += 1; s.diff_results += 1; }
     else if (p.points === 1) { s.winner_points += 1; s.winner_only_results += 1; }
   });
 
