@@ -125,8 +125,8 @@ function renderLogin() {
       </div>
       <form id="authForm">
         ${isRegister ? `<input type="text" name="inviteCode" placeholder="Código de invitación" required>` : ''}
-        <input type="text" name="username" placeholder="Usuario" autocomplete="username" required>
-        <input type="password" name="password" placeholder="Contraseña" autocomplete="current-password" required>
+        <input type="text" name="username" placeholder="Usuario" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+        <input type="password" name="password" placeholder="Contraseña" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
         <button type="submit" class="btn block">${isRegister ? 'Crear cuenta' : 'Entrar'}</button>
       </form>
       <div id="authMsg"></div>
@@ -944,7 +944,10 @@ async function renderAdminUsuarios(container) {
 
   const usersHtml = users.map(u => `
     <div class="admin-row">
-      <div>${escapeHtml(u.display_name || u.username)}${u.is_admin ? ' <span class="muted" style="font-size:11px;">(admin)</span>' : ''}</div>
+      <div>
+        <div>${escapeHtml(u.display_name || u.username)}${u.is_admin ? ' <span class="muted" style="font-size:11px;">(admin)</span>' : ''}</div>
+        <div class="muted" style="font-size:11px;">usuario: <strong>${escapeHtml(u.username)}</strong></div>
+      </div>
       <button class="btn secondary" data-reset="${u.id}" style="padding:8px 14px;font-size:12px;">Restablecer contraseña</button>
     </div>
   `).join('');

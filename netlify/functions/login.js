@@ -30,7 +30,12 @@ exports.handler = async (event) => {
     return jsonResponse(401, { error: 'Usuario o contraseña incorrectos' });
   }
 
-  const valid = await bcrypt.compare(password, user.password_hash);
+  // Se prueba tal cual y sin espacios sobrantes (al pegar o dictar la
+  // contraseña temporal es fácil que se cuele un espacio al principio o al final)
+  let valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid && password !== password.trim()) {
+    valid = await bcrypt.compare(password.trim(), user.password_hash);
+  }
   if (!valid) {
     return jsonResponse(401, { error: 'Usuario o contraseña incorrectos' });
   }
