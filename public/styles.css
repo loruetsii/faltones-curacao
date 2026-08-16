@@ -383,18 +383,33 @@ button:focus-visible {
 
 /* ---------- STANDINGS TABLE ---------- */
 .standings-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.standings-table { width: 100%; min-width: 460px; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-.standings-table th {
-  text-align: left; color: var(--text-muted); font-weight: 600;
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
-  padding: 8px 6px; border-bottom: 1px solid var(--line);
+.standings-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  table-layout: fixed; font-variant-numeric: tabular-nums;
 }
-.standings-table td { padding: 11px 6px; border-bottom: 1px solid var(--line); transition: background 0.15s var(--ease); }
+.standings-table th {
+  color: var(--text-muted); font-weight: 600;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 8px 4px; border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.standings-table td {
+  padding: 10px 4px; border-bottom: 1px solid var(--line);
+  vertical-align: middle; transition: background 0.15s var(--ease);
+}
 .standings-table tr:last-child td { border-bottom: none; }
 .standings-table tr:hover td { background: rgba(255,255,255,0.015); }
-.standings-table .pos-col { width: 30px; color: var(--text-muted); font-family: var(--font-display); }
-.standings-table .name-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.standings-table .name-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.standings-table .pos-col {
+  width: 34px; text-align: center;
+  color: var(--text-muted); font-family: var(--font-display);
+}
+.standings-table th:first-child { text-align: center; }
+.standings-table .name-cell {
+  display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left;
+}
+.standings-table .name-cell span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .standings-table .name-cell img {
   width: 24px; height: 24px; border-radius: 50%; object-fit: cover;
   border: 1px solid var(--line); flex-shrink: 0;
@@ -485,6 +500,28 @@ button:focus-visible {
 :root[data-theme="light"] .pts-pill.pts-0 { background: rgba(211,42,69,0.1); color: var(--coral); }
 :root[data-theme="light"] .login-box { border-color: rgba(92,140,10,0.25); box-shadow: var(--shadow-lift); }
 
+/* ---------- BLOQUE DE PARTIDO (pronósticos, 2 líneas) ---------- */
+.match-block {
+  padding: 12px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.match-block:last-child { border-bottom: none; }
+.match-block .match-kickoff { padding-top: 0; margin-bottom: 8px; }
+.match-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.match-teams .team.away { flex-direction: row-reverse; text-align: right; }
+.match-scores {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; margin-top: 10px;
+}
+.score-sep {
+  font-family: var(--font-display); font-size: 18px; color: var(--text-muted);
+}
+
 /* ---------- BARRA DE PROGRESO ---------- */
 .progress-strip {
   margin-top: 12px;
@@ -523,34 +560,40 @@ button:focus-visible {
   width: 26px; height: 26px; font-size: 17px; flex-shrink: 0;
 }
 
+.standings-table-liga th:nth-child(3),
+.standings-table-liga th:nth-child(4) { width: 56px; text-align: center; }
+.standings-table-liga td:nth-child(3),
+.standings-table-liga td:nth-child(4) { text-align: center; }
+
 /* ---------- CLASIFICACIÓN: top 3 destacado en la propia tabla ---------- */
-.standings-table-hi { min-width: 420px; }
-.standings-table-hi th:nth-child(1) { width: 30px; }
-.standings-table-hi th:nth-child(3) { width: 62px; }
+.standings-table-hi th:nth-child(1) { width: 34px; }
+.standings-table-hi th:nth-child(3) { width: 54px; text-align: center; }
 .standings-table-hi th:nth-child(4),
 .standings-table-hi th:nth-child(5),
-.standings-table-hi th:nth-child(6) { width: 52px; text-align: center; }
+.standings-table-hi th:nth-child(6) { width: 42px; text-align: center; }
+.standings-table-hi td:nth-child(3),
 .standings-table-hi td:nth-child(4),
 .standings-table-hi td:nth-child(5),
-.standings-table-hi td:nth-child(6) { text-align: center; color: var(--text-muted); font-size: 12.5px; }
+.standings-table-hi td:nth-child(6) { text-align: center; }
+.standings-table-hi td:nth-child(4),
+.standings-table-hi td:nth-child(5),
+.standings-table-hi td:nth-child(6) { color: var(--text-muted); font-size: 12.5px; }
 .standings-table-hi td { font-size: 13.5px; }
-.standings-table-hi .medal { font-size: 18px; line-height: 1; }
-.standings-table-hi tr.row-rank-1 td,
-.standings-table-hi tr.row-rank-2 td,
-.standings-table-hi tr.row-rank-3 td {
-  padding-top: 13px; padding-bottom: 13px;
-}
-.standings-table-hi tr.row-rank-1 .name-cell { font-weight: 700; font-size: 14.5px; }
+.standings-table-hi .medal { font-size: 17px; line-height: 1; }
+.standings-table-hi tr.row-rank-1 .name-cell { font-weight: 700; }
+.standings-table-hi .name-cell .name-sm { font-size: 12px; }
+.standings-table-hi .name-cell .name-xs { font-size: 10.5px; }
 .standings-table-hi .pts {
   display: inline-block;
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 400;
   background: rgba(198,255,61,0.12);
-  padding: 3px 10px;
+  padding: 3px 9px;
   border-radius: 20px;
-  text-shadow: 0 0 14px rgba(198,255,61,0.35);
+  min-width: 40px;
+  text-align: center;
 }
-.standings-table-hi tr.row-rank-1 .pts { font-size: 24px; background: rgba(198,255,61,0.2); }
+.standings-table-hi tr.row-rank-1 .pts { background: rgba(198,255,61,0.22); }
 
 /* ---------- HISTORIAL: jornadas y tabla de pronósticos ---------- */
 .jornada-header {

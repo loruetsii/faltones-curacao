@@ -358,33 +358,39 @@ async function renderPredicciones() {
   const list = view.querySelector('#matchesList');
   data.matches.forEach(m => {
     const wrap = document.createElement('div');
-    const row = document.createElement('div');
-    row.className = 'match-row';
+    wrap.className = 'match-block';
     const hasPred = !!m.my_prediction;
     const prevHome = hasPred ? m.my_prediction.home_score_pred : 0;
     const prevAway = hasPred ? m.my_prediction.away_score_pred : 0;
-    row.innerHTML = `
-      <div class="team home">
-        ${crestImgHtml(m.home_team.crest_url)}
-        <div><div>${escapeHtml(m.home_team.name)}</div><div class="pos">${m.home_team.liga_position ? '#' + m.home_team.liga_position : ''}</div></div>
+    wrap.innerHTML = `
+      <div class="match-kickoff">${formatMatchKickoff(m.kickoff_at)}</div>
+      <div class="match-teams">
+        <div class="team home">
+          ${crestImgHtml(m.home_team.crest_url)}
+          <div><div>${escapeHtml(m.home_team.name)}</div><div class="pos">${m.home_team.liga_position ? '#' + m.home_team.liga_position : ''}</div></div>
+        </div>
+        <div class="team away">
+          ${crestImgHtml(m.away_team.crest_url)}
+          <div><div>${escapeHtml(m.away_team.name)}</div><div class="pos">${m.away_team.liga_position ? '#' + m.away_team.liga_position : ''}</div></div>
+        </div>
       </div>
-      <div>
+      <div class="match-scores">
         ${scoreStepperHtml(m.id, 'home', prevHome, hasPred)}
-      </div>
-      <div class="team away">
-        ${crestImgHtml(m.away_team.crest_url)}
-        <div><div>${escapeHtml(m.away_team.name)}</div><div class="pos">${m.away_team.liga_position ? '#' + m.away_team.liga_position : ''}</div></div>
+        <span class="score-sep">-</span>
+        ${scoreStepperHtml(m.id, 'away', prevAway, hasPred)}
       </div>
     `;
-    wrap.innerHTML = `<div class="match-kickoff">${formatMatchKickoff(m.kickoff_at)}</div>`;
-    wrap.appendChild(row);
     list.appendChild(wrap);
   });
 
   const updateProgress = () => {
     const steppers = view.querySelectorAll('.score-stepper');
     const total = data.matches.length;
-    const done = Array.from(steppers).filter(st => st.dataset.touched === '1').length;
+    const touchedMatches = new Set();
+    steppers.forEach(st => {
+      if (st.dataset.touched === '1') touchedMatches.add(st.dataset.match);
+    });
+    const done = touchedMatches.size;
     const pct = total === 0 ? 0 : Math.round((done / total) * 100);
     view.querySelector('#progressFill').style.width = pct + '%';
     view.querySelector('#progressText').textContent = `${done} de ${total} partidos`;
@@ -583,6 +589,13 @@ function paintPorraModeRow(view) {
   });
 }
 
+function nameSizeClass(name) {
+  const len = (name || '').length;
+  if (len > 20) return 'name-xs';
+  if (len > 14) return 'name-sm';
+  return '';
+}
+
 function breakdownTable(ranking, myUsername) {
   const medals = ['🥇', '🥈', '🥉'];
   return `
@@ -598,10 +611,7 @@ function breakdownTable(ranking, myUsername) {
         ${ranking.map((r, i) => `
           <tr class="${r.username === myUsername ? 'row-me' : ''} ${i < 3 ? 'row-rank-' + (i + 1) : ''}">
             <td class="pos-col">${i < 3 ? `<span class="medal">${medals[i]}</span>` : (r.position ?? i + 1)}</td>
-            <td class="name-cell">
-              ${r.avatar_url ? `<img src="${r.avatar_url}">` : ''}
-              <span>${escapeHtml(r.display_name)}</span>
-            </td>
+            <td class="name-cell"><span class="${nameSizeClass(r.display_name)}">${escapeHtml(r.display_name)}</span></td>
             <td class="pts">${r.total_points}</td>
             <td>${r.exact_points}</td>
             <td>${r.diff_points}</td>
@@ -672,7 +682,7 @@ async function fillClasifContent(container) {
     const { teams } = await api('standings-liga');
     container.innerHTML = `
       <div class="standings-table-scroll">
-      <table class="standings-table">
+      <table class="standings-table standings-table-liga">
         <thead><tr><th>#</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr></thead>
         <tbody>
           ${teams.map(t => `
