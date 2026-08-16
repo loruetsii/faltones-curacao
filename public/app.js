@@ -43,10 +43,37 @@ function logout() {
   render();
 }
 
+let unsavedChanges = false;
+
+window.addEventListener('beforeunload', (e) => {
+  if (unsavedChanges) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
 function setTab(tab) {
+  if (unsavedChanges && state.tab === 'predicciones' && tab !== 'predicciones') {
+    if (!confirm('Tienes cambios sin guardar en tus pronósticos. ¿Salir de todas formas?')) {
+      return;
+    }
+  }
+  unsavedChanges = false;
   state.tab = tab;
   render();
 }
+
+function getTheme() {
+  return localStorage.getItem('fc_theme') || 'dark';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#F4F6F2' : '#090E0C');
+}
+
+applyTheme(getTheme());
 
 // ---------- Boot ----------
 async function boot() {
@@ -216,10 +243,17 @@ function renderShell() {
     <div class="profile-chip">
       ${state.user.avatar_url ? `<img class="avatar" src="${state.user.avatar_url}">` : ''}
       <span>${escapeHtml(state.user.display_name || state.user.username)}</span>
+      <button id="themeBtn" class="btn secondary" style="padding:6px 9px;font-size:13px;" title="Cambiar tema">${getTheme() === 'light' ? '🌙' : '☀️'}</button>
       <button id="logoutBtn" class="btn secondary" style="padding:6px 10px;font-size:11px;">Salir</button>
     </div>
   `;
   topbar.querySelector('#logoutBtn').addEventListener('click', logout);
+  topbar.querySelector('#themeBtn').addEventListener('click', () => {
+    const next = getTheme() === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    localStorage.setItem('fc_theme', next);
+    render();
+  });
   wrap.appendChild(topbar);
 
   const content = document.createElement('div');
@@ -248,7 +282,7 @@ function renderShell() {
 }
 
 async function loadTabContent(content) {
-  content.innerHTML = '<div class="view"><div class="empty-state">Cargando…</div></div>';
+  content.innerHTML = '<div class="view">' + skeletonHtml(5) + '</div>';
   try {
     let view;
     if (state.tab === 'predicciones') view = await renderPredicciones();
@@ -267,6 +301,15 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str ?? '';
   return div.innerHTML;
+}
+
+function skeletonHtml(bars = 4) {
+  let html = '<div class="skeleton-wrap">';
+  for (let i = 0; i < bars; i++) {
+    html += `<div class="skeleton-bar tall"></div>`;
+  }
+  html += '</div>';
+  return html;
 }
 
 // ============================================================
@@ -289,6 +332,7 @@ async function renderPredicciones() {
   const md = data.matchday;
   view.innerHTML = `
     <h2>Jornada ${md.number}${md.is_midweek ? ' (entre semana)' : ''}</h2>
+    <div id="summaryStrip"></div>
     <div class="deadline-strip">
       <div>
         <div class="label">Plazo cierra</div>
@@ -296,34 +340,39 @@ async function renderPredicciones() {
       </div>
       <div class="clock" id="countdown">--:--:--:--</div>
     </div>
+    <div class="progress-strip">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
     <div class="card" style="margin-top:14px;">
       <div id="matchesList"></div>
-      <button id="submitPreds" class="btn block" style="margin-top:16px;">Guardar pronósticos</button>
       <div id="predsMsg"></div>
     </div>
+    <div class="sticky-save">
+      <button id="submitPreds" class="btn block">Guardar pronósticos</button>
+    </div>
   `;
+
+  fillSummaryStrip(view.querySelector('#summaryStrip'));
 
   const list = view.querySelector('#matchesList');
   data.matches.forEach(m => {
     const wrap = document.createElement('div');
     const row = document.createElement('div');
     row.className = 'match-row';
-    const prevHome = m.my_prediction ? m.my_prediction.home_score_pred : '';
-    const prevAway = m.my_prediction ? m.my_prediction.away_score_pred : '';
+    const hasPred = !!m.my_prediction;
+    const prevHome = hasPred ? m.my_prediction.home_score_pred : 0;
+    const prevAway = hasPred ? m.my_prediction.away_score_pred : 0;
     row.innerHTML = `
       <div class="team home">
-        ${m.home_team.crest_url ? `<img src="${m.home_team.crest_url}">` : ''}
+        ${crestImgHtml(m.home_team.crest_url)}
         <div><div>${escapeHtml(m.home_team.name)}</div><div class="pos">${m.home_team.liga_position ? '#' + m.home_team.liga_position : ''}</div></div>
       </div>
       <div>
-        <div class="score-inputs">
-          <input type="number" min="0" max="20" data-match="${m.id}" data-side="home" style="text-align:right;" value="${prevHome}">
-          <span>-</span>
-          <input type="number" min="0" max="20" data-match="${m.id}" data-side="away" value="${prevAway}">
-        </div>
+        ${scoreStepperHtml(m.id, 'home', prevHome, hasPred)}
       </div>
       <div class="team away">
-        ${m.away_team.crest_url ? `<img src="${m.away_team.crest_url}">` : ''}
+        ${crestImgHtml(m.away_team.crest_url)}
         <div><div>${escapeHtml(m.away_team.name)}</div><div class="pos">${m.away_team.liga_position ? '#' + m.away_team.liga_position : ''}</div></div>
       </div>
     `;
@@ -332,6 +381,21 @@ async function renderPredicciones() {
     list.appendChild(wrap);
   });
 
+  const updateProgress = () => {
+    const steppers = view.querySelectorAll('.score-stepper');
+    const total = data.matches.length;
+    const done = Array.from(steppers).filter(st => st.dataset.touched === '1').length;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    view.querySelector('#progressFill').style.width = pct + '%';
+    view.querySelector('#progressText').textContent = `${done} de ${total} partidos`;
+  };
+
+  bindScoreSteppers(list, () => {
+    unsavedChanges = true;
+    updateProgress();
+  });
+  updateProgress();
+
   const anySubmitted = data.matches.some(m => m.my_prediction);
   const submitBtn = view.querySelector('#submitPreds');
   submitBtn.textContent = anySubmitted ? 'Actualizar pronósticos' : 'Guardar pronósticos';
@@ -339,23 +403,20 @@ async function renderPredicciones() {
     '<div class="muted" style="margin-top:12px;font-size:13px;">Puedes cambiar tu pronóstico las veces que quieras hasta que cierre el plazo. Los pronósticos de los demás se revelarán al cerrarse.</div>');
 
   submitBtn.addEventListener('click', async () => {
-    const inputs = view.querySelectorAll('.score-inputs input');
+    const steppers = view.querySelectorAll('.score-stepper');
     const byMatch = {};
-    inputs.forEach(inp => {
-      const id = parseInt(inp.dataset.match, 10);
+    steppers.forEach(st => {
+      const id = parseInt(st.dataset.match, 10);
       if (!byMatch[id]) byMatch[id] = {};
-      byMatch[id][inp.dataset.side] = inp.value;
+      byMatch[id][st.dataset.side] = st.dataset.value;
     });
     const predictions = Object.entries(byMatch).map(([matchId, v]) => ({
       matchId: parseInt(matchId, 10), home: v.home, away: v.away
     }));
     const msgEl = view.querySelector('#predsMsg');
-    if (predictions.some(p => p.home === '' || p.away === '' || p.home == null || p.away == null)) {
-      msgEl.innerHTML = '<div class="error-msg">Rellena el resultado de todos los partidos</div>';
-      return;
-    }
     try {
       await api('predictions', { method: 'POST', body: { predictions } });
+      unsavedChanges = false;
       showToast('Pronósticos guardados');
       loadTabContent(document.getElementById('content'));
     } catch (err) {
@@ -366,6 +427,68 @@ async function renderPredicciones() {
   startCountdown(md.deadline_at, view.querySelector('#countdown'));
 
   return view;
+}
+
+function crestImgHtml(url) {
+  if (!url) return '<span class="crest-fallback">⚽</span>';
+  return `<img src="${url}" loading="lazy" onerror="this.outerHTML='<span class=\\'crest-fallback\\'>⚽</span>'">`;
+}
+
+async function fillSummaryStrip(el) {
+  try {
+    const { ranking } = await api('standings-porra');
+    if (!ranking || ranking.length === 0) { el.innerHTML = ''; return; }
+    const meIndex = ranking.findIndex(r => r.username === state.user.username);
+    if (meIndex === -1) { el.innerHTML = ''; return; }
+    const me = ranking[meIndex];
+    const leader = ranking[0];
+    const gap = leader.total_points - me.total_points;
+    const gapText = meIndex === 0 ? 'Vas líder' : `A ${gap} pto${gap === 1 ? '' : 's'} del líder`;
+    el.innerHTML = `
+      <div class="summary-strip">
+        <div class="summary-stat">
+          <div class="summary-value">#${me.position}</div>
+          <div class="summary-label">Tu posición</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-value">${me.total_points}</div>
+          <div class="summary-label">Puntos</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-value" style="font-size:15px;">${gapText}</div>
+          <div class="summary-label">Clasificación</div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = '';
+  }
+}
+
+function scoreStepperHtml(matchId, side, value, touched) {
+  return `
+    <div class="score-stepper" data-match="${matchId}" data-side="${side}" data-value="${value}" data-touched="${touched ? '1' : '0'}">
+      <button type="button" class="step-btn minus">−</button>
+      <span class="step-value">${value}</span>
+      <button type="button" class="step-btn plus">+</button>
+    </div>
+  `;
+}
+
+function bindScoreSteppers(container, onChange) {
+  container.querySelectorAll('.score-stepper').forEach(st => {
+    const valueEl = st.querySelector('.step-value');
+    const update = (delta) => {
+      let v = parseInt(st.dataset.value, 10) + delta;
+      v = Math.max(0, Math.min(20, v));
+      st.dataset.value = v;
+      st.dataset.touched = '1';
+      valueEl.textContent = v;
+      if (onChange) onChange();
+    };
+    st.querySelector('.minus').addEventListener('click', () => update(-1));
+    st.querySelector('.plus').addEventListener('click', () => update(1));
+  });
 }
 
 function startCountdown(deadlineIso, el) {
@@ -463,12 +586,13 @@ function paintPorraModeRow(view) {
 function breakdownTable(ranking, myUsername) {
   const medals = ['🥇', '🥈', '🥉'];
   return `
+    <div class="standings-table-scroll">
     <table class="standings-table standings-table-hi">
       <thead><tr>
         <th>#</th><th>Jugador</th><th>Pts</th>
-        <th title="Puntos por resultado exacto">Exacto</th>
+        <th title="Puntos por resultado exacto">Exac.</th>
         <th title="Puntos por diferencia de goles">Dif.</th>
-        <th title="Puntos por acertar solo el ganador">Ganador</th>
+        <th title="Puntos por acertar solo el ganador">Gan.</th>
       </tr></thead>
       <tbody>
         ${ranking.map((r, i) => `
@@ -476,7 +600,7 @@ function breakdownTable(ranking, myUsername) {
             <td class="pos-col">${i < 3 ? `<span class="medal">${medals[i]}</span>` : (r.position ?? i + 1)}</td>
             <td class="name-cell">
               ${r.avatar_url ? `<img src="${r.avatar_url}">` : ''}
-              ${escapeHtml(r.display_name)}
+              <span>${escapeHtml(r.display_name)}</span>
             </td>
             <td class="pts">${r.total_points}</td>
             <td>${r.exact_points}</td>
@@ -486,11 +610,12 @@ function breakdownTable(ranking, myUsername) {
         `).join('')}
       </tbody>
     </table>
+    </div>
   `;
 }
 
 async function fillClasifContent(container) {
-  container.innerHTML = '<div class="empty-state">Cargando…</div>';
+  container.innerHTML = skeletonHtml(4);
 
   if (clasifSubTab === 'porra' && porraViewMode === 'general') {
     const { ranking } = await api('standings-porra');
@@ -546,6 +671,7 @@ async function fillClasifContent(container) {
   } else {
     const { teams } = await api('standings-liga');
     container.innerHTML = `
+      <div class="standings-table-scroll">
       <table class="standings-table">
         <thead><tr><th>#</th><th>Equipo</th><th>Pts</th><th>PJ</th></tr></thead>
         <tbody>
@@ -553,8 +679,8 @@ async function fillClasifContent(container) {
             <tr>
               <td class="pos-col">${t.liga_position ?? '-'}</td>
               <td class="name-cell">
-                ${t.crest_url ? `<img src="${t.crest_url}">` : ''}
-                ${escapeHtml(t.name)}
+                ${t.crest_url ? `<img class="crest-img" src="${t.crest_url}" loading="lazy" onerror="this.outerHTML='<span class=\\'crest-fallback\\'>⚽</span>'">` : '<span class="crest-fallback">⚽</span>'}
+                <span>${escapeHtml(t.name)}</span>
               </td>
               <td class="pts">${t.liga_points ?? '-'}</td>
               <td>${t.liga_played ?? '-'}</td>
@@ -562,6 +688,7 @@ async function fillClasifContent(container) {
           `).join('')}
         </tbody>
       </table>
+      </div>
     `;
   }
 }
@@ -629,12 +756,12 @@ async function renderHistorial() {
           <span class="match-kickoff" style="padding-top:0;">${formatMatchKickoff(m.kickoff_at)}</span>
           <div class="match-row" style="border-bottom:none;padding:6px 0;">
             <div class="team home">
-              ${m.home_team.crest_url ? `<img src="${m.home_team.crest_url}">` : ''}
+              ${crestImgHtml(m.home_team.crest_url)}
               <div>${escapeHtml(m.home_team.name)}</div>
             </div>
             <div class="score-locked">${m.status === 'finished' ? `${m.home_score} - ${m.away_score}` : 'vs'}</div>
             <div class="team away">
-              ${m.away_team.crest_url ? `<img src="${m.away_team.crest_url}">` : ''}
+              ${crestImgHtml(m.away_team.crest_url)}
               <div>${escapeHtml(m.away_team.name)}</div>
             </div>
           </div>
@@ -743,7 +870,7 @@ async function renderAdmin() {
 }
 
 async function fillAdminContent(container) {
-  container.innerHTML = '<div class="empty-state">Cargando…</div>';
+  container.innerHTML = skeletonHtml(4);
   if (adminSubTab === 'usuarios') return renderAdminUsuarios(container);
   if (adminSubTab === 'pronosticos') return renderAdminPronosticos(container);
   if (adminSubTab === 'datos') return renderAdminDatos(container);
@@ -789,25 +916,67 @@ async function renderAdminPronosticos(container) {
 }
 
 async function renderAdminUsuarios(container) {
-  const { pending } = await api('admin-users-pending');
-  if (pending.length === 0) {
-    container.innerHTML = '<div class="card"><div class="empty-state">No hay usuarios pendientes de aprobación</div></div>';
-    return;
-  }
-  container.innerHTML = `<div class="card">${pending.map(u => `
+  const [{ pending }, { users }] = await Promise.all([
+    api('admin-users-pending'),
+    api('admin-users-list')
+  ]);
+
+  const pendingHtml = pending.length === 0
+    ? '<div class="empty-state">No hay usuarios pendientes de aprobación</div>'
+    : pending.map(u => `
+      <div class="admin-row">
+        <div>${escapeHtml(u.username)}</div>
+        <button class="btn" data-approve="${u.id}" style="padding:8px 14px;font-size:12px;">Aprobar</button>
+      </div>
+    `).join('');
+
+  const usersHtml = users.map(u => `
     <div class="admin-row">
-      <div>${escapeHtml(u.username)}</div>
-      <button class="btn" data-id="${u.id}" style="padding:8px 14px;font-size:12px;">Aprobar</button>
+      <div>${escapeHtml(u.display_name || u.username)}${u.is_admin ? ' <span class="muted" style="font-size:11px;">(admin)</span>' : ''}</div>
+      <button class="btn secondary" data-reset="${u.id}" style="padding:8px 14px;font-size:12px;">Restablecer contraseña</button>
     </div>
-  `).join('')}</div>`;
-  container.querySelectorAll('button[data-id]').forEach(btn => {
+  `).join('');
+
+  container.innerHTML = `
+    <div class="card admin-section">
+      <h3>Pendientes de aprobación</h3>
+      ${pendingHtml}
+    </div>
+    <div class="card admin-section">
+      <h3>Restablecer contraseña</h3>
+      <p class="muted" style="font-size:12px;margin-bottom:10px;">Si alguien no se acuerda de su contraseña, genera una nueva aquí y pásasela por WhatsApp.</p>
+      ${usersHtml}
+    </div>
+    <div id="resetMsg"></div>
+  `;
+
+  container.querySelectorAll('button[data-approve]').forEach(btn => {
     btn.addEventListener('click', async () => {
       try {
-        await api('admin-users-approve', { method: 'POST', body: { userId: btn.dataset.id } });
+        await api('admin-users-approve', { method: 'POST', body: { userId: btn.dataset.approve } });
         showToast('Usuario aprobado');
         renderAdminUsuarios(container);
       } catch (err) {
         showToast(err.message);
+      }
+    });
+  });
+
+  container.querySelectorAll('button[data-reset]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.admin-row');
+      const name = row ? row.querySelector('div').textContent.trim() : 'este usuario';
+      if (!confirm(`¿Seguro que quieres restablecer la contraseña de ${name}? La actual dejará de funcionar.`)) return;
+      const msgEl = container.querySelector('#resetMsg');
+      try {
+        const res = await api('admin-reset-password', { method: 'POST', body: { userId: btn.dataset.reset } });
+        msgEl.innerHTML = `<div class="card" style="margin-top:10px;">
+          <div class="muted" style="font-size:12px;">Nueva contraseña temporal:</div>
+          <div style="font-family:var(--font-display);font-size:22px;color:var(--lime);letter-spacing:0.05em;">${res.tempPassword}</div>
+          <div class="muted" style="font-size:12px;margin-top:6px;">Pásasela a la persona; puede entrar con esta y ya está (no hace falta que la cambie).</div>
+        </div>`;
+      } catch (err) {
+        msgEl.innerHTML = `<div class="error-msg">${err.message}</div>`;
       }
     });
   });
@@ -1015,10 +1184,25 @@ async function renderAdminWhatsapp(container) {
         Pulsa un botón para abrir WhatsApp con el mensaje ya escrito. Tú eliges el grupo y le das a enviar.
       </p>
       <button class="btn block" id="waDeadline" style="margin-bottom:10px;">📤 Aviso de cierre de plazo</button>
+      <button class="btn block" id="waMissing" style="margin-bottom:10px;">📤 Avisar a quien falta por meter la porra</button>
       <button class="btn block" id="waResults" style="margin-bottom:10px;">📤 Aviso de resultados publicados</button>
       <button class="btn block" id="waLeader">📤 Aviso de cambio de líder</button>
     </div>
   `;
+
+  container.querySelector('#waMissing').addEventListener('click', async () => {
+    try {
+      const { matchday, users } = await api('admin-current-submissions');
+      if (!matchday) return showToast('No hay ninguna jornada abierta');
+      const missing = users.filter(u => u.submitted_count < u.total_matches);
+      if (missing.length === 0) {
+        return showToast('¡Todo el mundo ha metido ya su porra!');
+      }
+      const names = missing.map(u => u.name).join(', ');
+      const text = `⚽ Faltones Curaçao – Jornada ${matchday.number}\nFaltan por meter la porra: ${names}.\nEl plazo cierra el ${formatDateEs(matchday.deadline_at)}. ¡Espabilad!`;
+      openWhatsapp(text);
+    } catch (err) { showToast(err.message); }
+  });
 
   container.querySelector('#waDeadline').addEventListener('click', async () => {
     try {
