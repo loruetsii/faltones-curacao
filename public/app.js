@@ -604,10 +604,7 @@ async function renderHistorial() {
     return view;
   }
 
-  view.innerHTML = `<h2>Historial</h2><div class="card"><canvas id="evolutionChart"></canvas></div>`;
-
-  const chartData = buildEvolutionData(matchdays);
-  drawEvolutionChart(view.querySelector('#evolutionChart'), chartData);
+  view.innerHTML = `<h2>Historial</h2>`;
 
   matchdays.forEach(md => {
     const section = document.createElement('div');
@@ -666,85 +663,6 @@ async function renderHistorial() {
 function badgeFor(points) {
   const cls = points === 6 ? 'verde' : points >= 1 ? 'amarillo' : 'rojo';
   return `<span class="badge ${cls}"></span>`;
-}
-
-function buildEvolutionData(matchdays) {
-  // matchdays viene ordenado de más reciente a más antigua: lo invertimos
-  const ordered = [...matchdays].reverse();
-  const users = {};
-  ordered.forEach(md => {
-    md.matches.forEach(m => {
-      m.predictions.forEach(p => {
-        if (!users[p.username]) users[p.username] = {};
-        if (!users[p.username][md.number]) users[p.username][md.number] = 0;
-        users[p.username][md.number] += (p.points || 0);
-      });
-    });
-  });
-  const matchdayNumbers = ordered.map(md => md.number);
-  const series = Object.entries(users).map(([name, byMd]) => {
-    let cum = 0;
-    const points = matchdayNumbers.map(n => {
-      cum += (byMd[n] || 0);
-      return cum;
-    });
-    return { name, points };
-  });
-  return { labels: matchdayNumbers, series };
-}
-
-function drawEvolutionChart(canvas, data) {
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth || 320;
-  const h = 220;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  ctx.scale(dpr, dpr);
-
-  const padding = { top: 10, right: 10, bottom: 24, left: 28 };
-  const plotW = w - padding.left - padding.right;
-  const plotH = h - padding.top - padding.bottom;
-
-  const maxPoints = Math.max(1, ...data.series.flatMap(s => s.points));
-  const colors = ['#C6FF3D', '#FFB020', '#FF3B5C', '#4DB6FF', '#B58BFF', '#FF8A4C', '#5CE0C6'];
-
-  ctx.strokeStyle = '#24322C';
-  ctx.lineWidth = 1;
-  ctx.font = '10px Inter';
-  ctx.fillStyle = '#8FA39A';
-  for (let i = 0; i <= 4; i++) {
-    const y = padding.top + plotH - (plotH * i / 4);
-    ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(w - padding.right, y);
-    ctx.stroke();
-    ctx.fillText(Math.round(maxPoints * i / 4), 2, y + 3);
-  }
-
-  data.series.forEach((s, idx) => {
-    ctx.strokeStyle = colors[idx % colors.length];
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    s.points.forEach((p, i) => {
-      const x = padding.left + (plotW * i / Math.max(1, s.points.length - 1));
-      const y = padding.top + plotH - (plotH * p / maxPoints);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  });
-
-  // leyenda
-  let lx = padding.left;
-  const ly = h - 6;
-  ctx.font = '9px Inter';
-  data.series.forEach((s, idx) => {
-    ctx.fillStyle = colors[idx % colors.length];
-    ctx.fillRect(lx, ly - 7, 7, 7);
-    ctx.fillStyle = '#8FA39A';
-    ctx.fillText(s.name, lx + 10, ly);
-    lx += ctx.measureText(s.name).width + 26;
-  });
 }
 
 // ============================================================
@@ -909,6 +827,11 @@ async function renderAdminDatos(container) {
       <button class="btn secondary block" id="syncResults" style="margin-bottom:8px;">Actualizar resultados y puntos</button>
       <button class="btn secondary block" id="syncLiga">Actualizar clasificación de La Liga</button>
     </div>
+    <div class="card admin-section">
+      <h3>Recalcular puntos</h3>
+      <p class="muted" style="font-size:13px;">Solo hace falta si has cambiado las reglas de puntuación y quieres que los partidos ya jugados se actualicen también con la fórmula nueva.</p>
+      <button class="btn secondary block" id="recalcPoints">Recalcular todos los puntos</button>
+    </div>
     <div id="syncMsg"></div>
   `;
   const msgEl = container.querySelector('#syncMsg');
@@ -929,6 +852,7 @@ async function renderAdminDatos(container) {
   bind('#syncCalendar', 'admin-sync-calendar');
   bind('#syncResults', 'admin-sync-results');
   bind('#syncLiga', 'admin-sync-liga');
+  bind('#recalcPoints', 'admin-recalculate-points');
 }
 
 async function renderAdminPartidos(container) {
