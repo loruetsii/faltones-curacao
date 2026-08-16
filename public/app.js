@@ -265,10 +265,10 @@ function renderShell() {
   const tabs = [...TABS];
   if (state.user.is_admin) tabs.push({ id: 'admin', label: 'Admin', icon: '⚙️' });
 
-  nav.innerHTML = `<div class="brand-desktop">⚽ Faltones<br>Curaçao</div>` + tabs.map(t => `
+  nav.innerHTML = tabs.map(t => `
     <button data-tab="${t.id}" class="${state.tab === t.id ? 'active' : ''}">
       <span class="icon">${t.icon}</span>
-      <span>${t.label}</span>
+      <span class="nav-label">${t.label}</span>
     </button>
   `).join('');
   nav.querySelectorAll('button[data-tab]').forEach(btn => {
@@ -689,8 +689,10 @@ async function fillClasifContent(container) {
             <tr>
               <td class="pos-col">${t.liga_position ?? '-'}</td>
               <td class="name-cell">
-                ${t.crest_url ? `<img class="crest-img" src="${t.crest_url}" loading="lazy" onerror="this.outerHTML='<span class=\\'crest-fallback\\'>⚽</span>'">` : '<span class="crest-fallback">⚽</span>'}
-                <span>${escapeHtml(t.name)}</span>
+                <div class="name-inner">
+                  ${t.crest_url ? `<img class="crest-img" src="${t.crest_url}" loading="lazy" onerror="this.style.display='none'">` : ''}
+                  <span>${escapeHtml(t.name)}</span>
+                </div>
               </td>
               <td class="pts">${t.liga_points ?? '-'}</td>
               <td>${t.liga_played ?? '-'}</td>

@@ -65,7 +65,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-body { padding-bottom: 96px; }
+body { padding-bottom: calc(74px + env(safe-area-inset-bottom)); }
 
 h1, h2, h3, .display {
   font-family: var(--font-display);
@@ -256,37 +256,37 @@ button:focus-visible {
 .view { padding: 16px 18px 32px; max-width: 720px; margin: 0 auto; }
 .view h2 { font-size: 22px; margin-bottom: 14px; }
 
-/* ---------- BOTTOM NAV (floating pill) ---------- */
+/* ---------- BOTTOM NAV (fija al borde inferior) ---------- */
 .bottom-nav {
-  position: fixed; bottom: 14px; left: 14px; right: 14px; z-index: 20;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
   background: var(--glass-nav);
   backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid var(--line-soft);
-  border-radius: 22px;
+  border-top: 1px solid var(--line);
   display: flex;
-  padding: 6px;
-  box-shadow: var(--shadow-lift);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
 }
 .bottom-nav button {
-  flex: 1;
+  flex: 1 1 0; min-width: 0;
   background: none;
   color: var(--text-muted);
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 9px 2px;
-  font-size: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 1px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-radius: 16px;
+  letter-spacing: 0;
+  border-radius: 12px;
   transition: all 0.2s var(--ease);
 }
-.bottom-nav button .icon { font-size: 19px; transition: transform 0.2s var(--ease); }
+.bottom-nav .nav-label {
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bottom-nav button .icon { font-size: 18px; }
 .bottom-nav button.active {
   color: var(--on-lime);
   background: linear-gradient(135deg, var(--lime) 0%, var(--lime-grad) 100%);
-  box-shadow: 0 4px 14px -4px rgba(198,255,61,0.5);
 }
-.bottom-nav button.active .icon { transform: scale(1.1); }
 
 /* ---------- MATCH ROWS ---------- */
 .match-kickoff {
@@ -391,35 +391,34 @@ button:focus-visible {
   color: var(--text-muted); font-weight: 600;
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
   padding: 8px 4px; border-bottom: 1px solid var(--line);
-  vertical-align: middle;
+  vertical-align: middle; text-align: center;
 }
+.standings-table th:nth-child(2) { text-align: left; }
 .standings-table td {
   padding: 10px 4px; border-bottom: 1px solid var(--line);
-  vertical-align: middle; transition: background 0.15s var(--ease);
+  vertical-align: middle; text-align: center;
 }
 .standings-table tr:last-child td { border-bottom: none; }
-.standings-table tr:hover td { background: rgba(255,255,255,0.015); }
 .standings-table .pos-col {
-  width: 34px; text-align: center;
+  width: 32px;
   color: var(--text-muted); font-family: var(--font-display);
 }
-.standings-table th:first-child { text-align: center; }
 .standings-table .name-cell {
-  display: flex; align-items: center; gap: 8px; min-width: 0; text-align: left;
-}
-.standings-table .name-cell span {
+  text-align: left;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.standings-table .name-cell img {
-  width: 24px; height: 24px; border-radius: 50%; object-fit: cover;
-  border: 1px solid var(--line); flex-shrink: 0;
+.standings-table .name-inner {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
 }
-.standings-table .name-cell img.crest-img {
-  border-radius: 4px; object-fit: contain; border: none; background: transparent;
+.standings-table .name-inner span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.standings-table .name-inner img.crest-img {
+  width: 22px; height: 22px; border-radius: 4px;
+  object-fit: contain; flex-shrink: 0;
 }
 .standings-table .pts { font-family: var(--font-display); color: var(--lime); font-size: 16px; }
-.row-me td { background: rgba(198,255,61,0.07); }
-.row-me:hover td { background: rgba(198,255,61,0.1); }
+.row-me td { background: rgba(198,255,61,0.08); }
 
 .tabs-row { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; }
 .tabs-row button {
@@ -451,7 +450,7 @@ button:focus-visible {
 .empty-state .icon { font-size: 40px; margin-bottom: 10px; }
 
 .toast {
-  position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: calc(90px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
   background: rgba(27,40,35,0.95);
   backdrop-filter: blur(12px);
   border: 1px solid var(--lime);
@@ -545,7 +544,7 @@ button:focus-visible {
 /* ---------- BOTÓN DE GUARDAR FIJO ---------- */
 .sticky-save {
   position: sticky;
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  bottom: calc(84px + env(safe-area-inset-bottom));
   margin-top: 16px;
   z-index: 15;
 }
@@ -566,34 +565,20 @@ button:focus-visible {
 .standings-table-liga td:nth-child(4) { text-align: center; }
 
 /* ---------- CLASIFICACIÓN: top 3 destacado en la propia tabla ---------- */
-.standings-table-hi th:nth-child(1) { width: 34px; }
-.standings-table-hi th:nth-child(3) { width: 54px; text-align: center; }
+.standings-table-hi th:nth-child(1) { width: 32px; }
+.standings-table-hi th:nth-child(3) { width: 46px; }
 .standings-table-hi th:nth-child(4),
 .standings-table-hi th:nth-child(5),
-.standings-table-hi th:nth-child(6) { width: 42px; text-align: center; }
-.standings-table-hi td:nth-child(3),
-.standings-table-hi td:nth-child(4),
-.standings-table-hi td:nth-child(5),
-.standings-table-hi td:nth-child(6) { text-align: center; }
+.standings-table-hi th:nth-child(6) { width: 40px; }
 .standings-table-hi td:nth-child(4),
 .standings-table-hi td:nth-child(5),
 .standings-table-hi td:nth-child(6) { color: var(--text-muted); font-size: 12.5px; }
-.standings-table-hi td { font-size: 13.5px; }
-.standings-table-hi .medal { font-size: 17px; line-height: 1; }
+.standings-table-hi .medal { font-size: 16px; line-height: 1; }
 .standings-table-hi tr.row-rank-1 .name-cell { font-weight: 700; }
 .standings-table-hi .name-cell .name-sm { font-size: 12px; }
 .standings-table-hi .name-cell .name-xs { font-size: 10.5px; }
-.standings-table-hi .pts {
-  display: inline-block;
-  font-size: 18px;
-  font-weight: 400;
-  background: rgba(198,255,61,0.12);
-  padding: 3px 9px;
-  border-radius: 20px;
-  min-width: 40px;
-  text-align: center;
-}
-.standings-table-hi tr.row-rank-1 .pts { background: rgba(198,255,61,0.22); }
+.standings-table-hi .pts { font-size: 19px; }
+.standings-table-hi tr.row-rank-1 .pts { color: var(--lime); }
 
 /* ---------- HISTORIAL: jornadas y tabla de pronósticos ---------- */
 .jornada-header {
@@ -658,19 +643,18 @@ button:focus-visible {
 
 /* ---------- DESKTOP ---------- */
 @media (min-width: 860px) {
-  body { padding-bottom: 0; padding-left: 232px; }
+  body { padding-bottom: 0; padding-left: 210px; }
   .bottom-nav {
-    top: 14px; bottom: 14px; left: 14px; right: auto; width: 204px;
-    flex-direction: column; justify-content: flex-start; padding: 16px 10px;
-    border-radius: 20px;
+    top: 0; bottom: 0; left: 0; right: auto; width: 210px;
+    flex-direction: column; justify-content: flex-start;
+    padding: 20px 10px;
+    border-top: none; border-right: 1px solid var(--line);
   }
   .bottom-nav button {
+    flex: 0 0 auto;
     flex-direction: row; justify-content: flex-start; gap: 10px;
-    padding: 12px 16px; font-size: 13px;
-  }
-  .bottom-nav .brand-desktop {
-    padding: 0 8px 20px; color: var(--lime); font-family: var(--font-display);
-    font-size: 20px; text-transform: uppercase;
+    padding: 12px 16px; font-size: 12px;
+    border-radius: 12px;
   }
   .view { max-width: 780px; padding: 24px 32px 40px; }
   .topbar { padding: 16px 32px; }
